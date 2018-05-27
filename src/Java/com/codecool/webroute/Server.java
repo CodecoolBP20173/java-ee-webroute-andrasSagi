@@ -11,14 +11,17 @@ import com.sun.net.httpserver.HttpServer;
 
 public class Server {
 
+    private static String ROUTER_FILE = "com.codecool.webroute.Routes";
+    private static Class routes;
+
     public static void main(String[] args) throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress(8000), 0);
-        Class cls = Class.forName("com.codecool.webroute.Routes");
-        for (Method method: cls.getDeclaredMethods()) {
+        routes = Class.forName(ROUTER_FILE);
+        for (Method method: routes.getDeclaredMethods()) {
             if (method.isAnnotationPresent(WebRoute.class)) {
                 Annotation annotation = method.getAnnotation(WebRoute.class);
                 WebRoute webRoute = (WebRoute) annotation;
-                server.createContext(webRoute.path(), new RouteHandler(webRoute.path()));
+                server.createContext(webRoute.path(), new RouteHandler(method));
             }
 
         }
@@ -28,26 +31,17 @@ public class Server {
 
     static class RouteHandler implements HttpHandler {
 
-        private String path;
+        private Method method;
 
-        RouteHandler(String path) {
-            this.path = path;
+        RouteHandler(Method method) {
+            this.method = method;
         }
 
         @Override
         public void handle(HttpExchange t) throws IOException {
             try {
-                Class cls = Class.forName("com.codecool.webroute.Routes");
-                Object obj = cls.newInstance();
-                for (Method method : cls.getDeclaredMethods()) {
-                    if (method.isAnnotationPresent(WebRoute.class)) {
-                        Annotation annotation = method.getAnnotation(WebRoute.class);
-                        WebRoute webRoute = (WebRoute) annotation;
-                        if (webRoute.path().equals(path)) {
-                            method.invoke(obj, t);
-                        }
-                    }
-                }
+                Object route = routes.newInstance();
+                method.invoke(route, t);
             } catch(Exception e) {
                 System.out.println(e);
                         }
